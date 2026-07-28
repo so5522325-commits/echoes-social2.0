@@ -170,7 +170,6 @@ function renderTransactions() {
 
     allTransactions.forEach(txn => {
         const amt = parseFloat(txn.amount);
-        // Ensure strictly type checking for income vs expense
         if (txn.type === 'income') {
             income += amt;
         } else {
@@ -188,7 +187,6 @@ function renderTransactions() {
         txnListEl.appendChild(li);
     });
 
-    // Correct balance calculation (Income - Expense)
     currentBalance = Math.max(0, income - expense);
     document.getElementById('totalBalance').textContent = `₹${currentBalance.toFixed(2)}`;
     document.getElementById('totalIncome').textContent = `+₹${income.toFixed(2)}`;
@@ -212,7 +210,6 @@ function updateVipTier(totalSpent) {
     }
 }
 
-// Direct Deposit Handler (Adds to Income -> Increases Balance)
 document.getElementById('txnForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const amount = parseFloat(document.getElementById('txnAmount').value);
@@ -233,7 +230,6 @@ document.getElementById('txnForm').addEventListener('submit', async (e) => {
     }
 });
 
-// UPI Withdrawal Form (Adds to Expense -> Decreases Balance)
 document.getElementById('withdrawForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const upi = document.getElementById('withdrawUpi').value;
@@ -266,7 +262,6 @@ async function addTransactionRecord(title, amount, type) {
     }
 }
 
-// Spin Wheel Feature (Adds Bonus as Income)
 function openSpinModal() { document.getElementById('spinModal').style.display = 'flex'; }
 function closeSpinModal() { document.getElementById('spinModal').style.display = 'none'; }
 
@@ -299,7 +294,6 @@ function spinWheel() {
     }, 3200);
 }
 
-// Scratch Card Feature Logic (Adds Reward as Income)
 function openScratchModal() {
     document.getElementById('scratchModal').style.display = 'flex';
     document.getElementById('scratchCover').classList.remove('scratched');
@@ -321,7 +315,6 @@ async function revealScratchCard() {
     await addTransactionRecord(`🎫 Scratch Card Reward`, reward, 'income');
 }
 
-// Daily Streak Claim (Adds Bonus as Income)
 async function claimDailyStreak() {
     const btn = document.getElementById('claimStreakBtn');
     btn.disabled = true;
@@ -331,14 +324,12 @@ async function claimDailyStreak() {
     alert("Day 1 Login Bonus ₹1 added to your wallet!");
 }
 
-// WhatsApp Share Invite with Dynamic Referral Link
 function shareOnWhatsApp() {
     const referralLink = `${window.location.origin}?ref=${currentUser ? currentUser.$id : 'LUDO'}`;
     const text = `🎲 Ludo Pro League par mere saath Ludo khelo aur paao ₹50 Free Bonus Cash! Instant withdrawal to UPI. Direct Join Link: ${referralLink}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-// Quick Chat / Emotes with Floating Animation
 function sendChat(msg) {
     playSound('dice');
     const container = document.getElementById('floatingEmojiContainer');
@@ -351,7 +342,6 @@ function sendChat(msg) {
     }
 }
 
-// Match Flow with Anti-Cheat Timer & Entry Fee Deduction (Expense)
 async function startMatch() {
     const bet = parseFloat(document.getElementById('betAmountSelect').value);
     
@@ -361,7 +351,6 @@ async function startMatch() {
         return;
     }
 
-    // Match join karte hi amount wallet se minus (expense) ho jayega
     await addTransactionRecord(`🎲 Match Entry Fee`, bet, 'expense');
     document.getElementById('rollDiceBtn').disabled = false;
     missedTurnsCount = 0;
@@ -379,10 +368,10 @@ function resetTimer() {
         
         if (timeLeft <= 0) {
             clearInterval(turnTimer);
-            missedTurnsCount++;
+            miss2 = missedTurnsCount++;
             
             if (missedTurnsCount >= 3) {
-                alert("⚠️ Anti-Cheat Rule: Aapne लगातार 3 turns miss kar diye! Game Forfeited (Loss).");
+                alert("⚠️ Anti-Cheat Rule: Aapne lagataar 3 turns miss kar diye! Game Forfeited (Loss).");
                 document.getElementById('rollDiceBtn').disabled = true;
                 showView('home');
             } else {
@@ -405,3 +394,4 @@ function handleDiceRoll() {
 }
 
 checkSession();
+            
