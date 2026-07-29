@@ -23,9 +23,10 @@
         <!-- VIP Tier Badge -->
         <div class="vip-badge" id="vipTierDisplay">👑 VIP Level 1 (Bronze)</div>
 
-        <div class="summary">
+        <!-- Minus system removed: Only Total Deposited & Total Won sum -->
+        <div class="summary" style="grid-template-columns: repeat(2, 1fr);">
+            <div><span>Total Deposited</span><strong class="income-text" id="totalDeposit">+₹0</strong></div>
             <div><span>Total Won</span><strong class="income-text" id="totalIncome">+₹0</strong></div>
-            <div><span>Entry Fees Paid</span><strong class="expense-text" id="totalExpense">-₹0</strong></div>
         </div>
     </div>
 
@@ -103,7 +104,17 @@
                         <div class="menu-icon">💳</div>
                         <div class="menu-info">
                             <div class="menu-title">Add / Withdraw Cash</div>
-                            <div class="menu-desc">Razorpay, UPI & Recharge</div>
+                            <div class="menu-desc">QR Scanner, UPI & Razorpay</div>
+                        </div>
+                        <div class="arrow-btn">➔</div>
+                    </div>
+
+                    <!-- Game Store Shortcut Card Added -->
+                    <div class="menu-card" onclick="showView('store')">
+                        <div class="menu-icon">🛒</div>
+                        <div class="menu-info">
+                            <div class="menu-title">Game Store</div>
+                            <div class="menu-desc">Buy Dice, Skins & Powers</div>
                         </div>
                         <div class="arrow-btn">➔</div>
                     </div>
@@ -117,7 +128,6 @@
                         <div class="arrow-btn">➔</div>
                     </div>
 
-                    <!-- NEW: Scratch Card Menu Option Added -->
                     <div class="menu-card" onclick="openScratchModal()">
                         <div class="menu-icon">🎫</div>
                         <div class="menu-info">
@@ -194,7 +204,6 @@
 
                     <div class="board-container">
                         <canvas id="ludoBoard" width="450" height="450"></canvas>
-                        <!-- Floating Emoji / Chat Notification Container -->
                         <div id="floatingEmojiContainer" class="floating-emoji-container"></div>
                     </div>
 
@@ -215,15 +224,29 @@
                 </div>
             </div>
 
-            <!-- VIEW 3: ADD CASH & UPI WITHDRAWAL -->
+            <!-- VIEW 3: ADD CASH, QR SCANNER & UPI WITHDRAWAL -->
             <div id="viewAddMoney" class="view-section" style="display: none;">
-                <h3 class="section-title">Add Deposit Cash (Auto Payment)</h3>
+                <h3 class="section-title">Scan QR & Pay (Instant Deposit)</h3>
+                <div class="qr-scanner-box">
+                    <p style="font-size: 0.75rem; color: #cbd5e1; margin-bottom: 8px;">Kisi bhi UPI App (GPay/PhonePe) se scan karke pay karein:</p>
+                    <div class="qr-image-container">
+                        <img id="dynamicUpiQr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=yourupi@okaxis&pn=ProLudoWallet" alt="UPI QR Code" style="width: 140px; height: 140px; border-radius: 8px; border: 3px solid #fff;">
+                    </div>
+                    <div style="font-size: 0.78rem; color: #facc15; margin-top: 6px;">UPI ID: <b>yourupi@okaxis</b></div>
+                    <div class="form-group" style="margin-top: 10px; text-align: left;">
+                        <label style="font-size: 0.75rem;">Payment ke baad UTR / Ref Number yahan dalein:</label>
+                        <input type="text" id="qrUtrInput" placeholder="Enter 12-digit UTR/Ref No" style="font-size: 0.85rem; padding: 8px;">
+                    </div>
+                    <button onclick="verifyQrPayment()" style="background: #22c55e; font-size: 0.85rem; padding: 8px;">Verify & Add Money</button>
+                </div>
+
+                <h3 class="section-title" style="margin-top: 20px;">Gateway Deposit (Razorpay)</h3>
                 <form id="txnForm" style="margin-bottom: 20px;">
                     <div class="form-group">
                         <label>Add Amount (₹)</label>
                         <input type="number" id="txnAmount" placeholder="Enter amount" required min="10">
                     </div>
-                    <button type="submit" style="background: #6366f1;">Deposit via Razorpay/UPI</button>
+                    <button type="submit" style="background: #6366f1;">Deposit via Razorpay</button>
                 </form>
 
                 <hr style="border-color: #334155; margin: 15px 0;">
@@ -271,6 +294,29 @@
                 </div>
             </div>
 
+            <!-- VIEW 6: GAME STORE / SHOP VIEW -->
+            <div id="viewStore" class="view-section" style="display: none;">
+                <h3 class="section-title">🛒 Game Store & Items</h3>
+                <div class="menu-grid">
+                    <div class="menu-card" onclick="buyItem('Special Lucky Dice', 50)">
+                        <div class="menu-icon">🎲</div>
+                        <div class="menu-info">
+                            <div class="menu-title">Special Lucky Dice</div>
+                            <div class="menu-desc">Price: ₹50 (Better 6 chances)</div>
+                        </div>
+                        <button style="background: #22c55e; padding: 4px 10px; font-size: 0.75rem; border:none; border-radius:4px; color:#fff; cursor:pointer;">Buy</button>
+                    </div>
+                    <div class="menu-card" onclick="buyItem('Golden Token Skin', 100)">
+                        <div class="menu-icon">👑</div>
+                        <div class="menu-info">
+                            <div class="menu-title">Golden Token Skin</div>
+                            <div class="menu-desc">Price: ₹100 (Custom Look)</div>
+                        </div>
+                        <button style="background: #22c55e; padding: 4px 10px; font-size: 0.75rem; border:none; border-radius:4px; color:#fff; cursor:pointer;">Buy</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -291,7 +337,7 @@
     </div>
 </div>
 
-<!-- NEW: SCRATCH CARD MODAL -->
+<!-- SCRATCH CARD MODAL -->
 <div id="scratchModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
         <h3>🎫 Daily Scratch Card</h3>
@@ -307,5 +353,4 @@
 <script src="ludoEngine.js"></script>
 <script src="appwriteWallet.js"></script>
 </body>
-  </html>
-                          
+</html>
