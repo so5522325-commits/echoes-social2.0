@@ -285,7 +285,6 @@ class LudoEngine {
 
         setTimeout(() => {
             if (movablePawns.length > 0) {
-                // Choose first valid pawn to move
                 let pawnToMove = movablePawns[0];
                 if (pawnToMove.pos === -1) {
                     pawnToMove.pos = 26;
@@ -306,4 +305,4 @@ class LudoEngine {
 }
 
 window.LudoEngine = LudoEngine;
-             
+                                                                     
