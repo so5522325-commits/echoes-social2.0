@@ -68,12 +68,19 @@ function toggleSound() {
     if (btn) btn.textContent = isSoundEnabled ? '🔊' : '🔇';
 }
 
+// 📌 Helper to get persistent Local Storage Transactions key
+function getStorageKey() {
+    if (currentUser && currentUser.$id) {
+        return `ludo_txns_${currentUser.$id}`;
+    }
+    return `ludo_txns_guest_global`;
+}
+
 async function checkSession() {
     try {
-        // Check local storage for Acode compatibility bypass
         const localEmail = localStorage.getItem('local_user_email');
         if (localEmail) {
-            currentUser = { $id: 'local_player_123', email: localEmail };
+            currentUser = { $id: 'user_' + btoa(localEmail).replace(/=/g, ''), email: localEmail };
             document.getElementById('userEmailDisplay').textContent = localEmail.split('@')[0];
             document.getElementById('userAvatar').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${localEmail}`;
 
@@ -122,12 +129,10 @@ function toggleAuthMode() {
 document.getElementById('authForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
 
     try {
-        // Acode app compatibility bypass for local testing
         localStorage.setItem('local_user_email', email);
-        currentUser = { $id: 'local_player_123', email: email };
+        currentUser = { $id: 'user_' + btoa(email).replace(/=/g, ''), email: email };
         
         document.getElementById('userEmailDisplay').textContent = email.split('@')[0];
         document.getElementById('userAvatar').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`;
@@ -149,10 +154,14 @@ async function logout() {
         localStorage.removeItem('local_user_email');
         await account.deleteSession('current').catch(() => {});
         currentUser = null;
+        allTransactions = [];
+        renderTransactions();
         checkSession();
     } catch (err) {
         localStorage.removeItem('local_user_email');
         currentUser = null;
+        allTransactions = [];
+        renderTransactions();
         checkSession();
     }
 }
@@ -174,60 +183,85 @@ function showView(viewName) {
     }
 }
 
+// 🟢 FIX 1: Robust Load Transactions with Double Fallback
 async function loadTransactions() {
-    if (!currentUser) return;
-    try {
-        const response = await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTION_TXN,
-            [Query.equal('userId', currentUser.$id), Query.orderDesc('$createdAt'), Query.limit(100)]
-        );
-        allTransactions = response.documents;
-        renderTransactions();
-    } catch (err) {
-        console.error("Fetch error:", err);
+    allTransactions = [];
+    
+    // 1. Local Storage Safe Check First
+    const key = getStorageKey();
+    const savedTxns = localStorage.getItem(key);
+    if (savedTxns) {
+        try {
+            allTransactions = JSON.parse(savedTxns);
+        } catch (e) {
+            allTransactions = [];
+        }
     }
+
+    // 2. Cloud Database Sync (Appwrite)
+    if (currentUser) {
+        try {
+            const response = await databases.listDocuments(
+                DATABASE_ID,
+                COLLECTION_TXN,
+                [Query.equal('userId', currentUser.$id), Query.orderDesc('$createdAt'), Query.limit(100)]
+            );
+            if (response && response.documents && response.documents.length > 0) {
+                allTransactions = response.documents;
+                localStorage.setItem(key, JSON.stringify(allTransactions));
+            }
+        } catch (err) {
+            console.log("Appwrite offline or network delayed, using local offline data.");
+        }
+    }
+
+    renderTransactions();
 }
 
+// 🟢 FIX 2: Correct Math calculation for Deposits vs Expenses vs Winnings
 function renderTransactions() {
     const txnListEl = document.getElementById('txnList');
-    if (!txnListEl) return;
-    txnListEl.innerHTML = '';
+    if (txnListEl) txnListEl.innerHTML = '';
     
     let totalDeposit = 0;
     let totalWon = 0;
-    let expense = 0;
+    let totalExpense = 0;
 
     allTransactions.forEach(txn => {
-        const amt = parseFloat(txn.amount);
-        const titleLower = txn.title.toLowerCase();
+        const amt = parseFloat(txn.amount) || 0;
+        const titleLower = (txn.title || '').toLowerCase();
 
-        if (titleLower.includes('deposit') || titleLower.includes('scan') || titleLower.includes('razorpay')) {
+        if (titleLower.includes('deposit') || titleLower.includes('scan') || titleLower.includes('razorpay') || titleLower.includes('top-up')) {
             totalDeposit += amt;
         } else if (txn.type === 'income') {
             totalWon += amt;
-        } else {
-            expense += amt;
+        } else if (txn.type === 'expense') {
+            totalExpense += amt;
         }
 
-        const li = document.createElement('li');
-        li.className = `txn-item ${txn.type}`;
-        li.innerHTML = `
-            <div class="txn-title">${txn.title}</div>
-            <span class="txn-amount ${txn.type === 'income' ? 'income-text' : 'expense-text'}">
-                ${txn.type === 'income' ? '+' : '-'}₹${amt.toFixed(2)}
-            </span>
-        `;
-        txnListEl.appendChild(li);
+        if (txnListEl) {
+            const li = document.createElement('li');
+            li.className = `txn-item ${txn.type}`;
+            li.innerHTML = `
+                <div class="txn-title">${txn.title}</div>
+                <span class="txn-amount ${txn.type === 'income' ? 'income-text' : 'expense-text'}">
+                    ${txn.type === 'income' ? '+' : '-'}₹${amt.toFixed(2)}
+                </span>
+            `;
+            txnListEl.appendChild(li);
+        }
     });
 
-    currentBalance = totalDeposit + totalWon;
-    
+    // Final Net Balance calculation
+    currentBalance = (totalDeposit + totalWon) - totalExpense;
+    if (currentBalance < 0) currentBalance = 0;
+
+    // Update UI Elements
     document.getElementById('totalBalance').textContent = `₹${currentBalance.toFixed(2)}`;
     document.getElementById('totalDeposit').textContent = `+₹${totalDeposit.toFixed(2)}`;
     document.getElementById('totalIncome').textContent = `+₹${totalWon.toFixed(2)}`;
 
-    updateVipTier(expense);
+    updateVipTier(totalExpense);
 }
 
 function updateVipTier(totalSpent) {
@@ -359,24 +393,37 @@ async function buyItem(itemName, price) {
     }
 }
 
+// 🟢 FIX 3: Dynamic Sync between Storage and Active State
 async function addTransactionRecord(title, amount, type) {
     if (!currentUser) return false;
-    try {
-        // Fallback for local storage list if offline/local
-        const newDoc = { $createdAt: new Date().toISOString(), title: title, amount: amount, type: type };
-        allTransactions.unshift(newDoc);
-        renderTransactions();
+    
+    const newDoc = { 
+        $createdAt: new Date().toISOString(), 
+        title: title, 
+        amount: amount, 
+        type: type 
+    };
+    
+    allTransactions.unshift(newDoc);
+    
+    // Save to LocalStorage immediately
+    const key = getStorageKey();
+    localStorage.setItem(key, JSON.stringify(allTransactions));
+    
+    renderTransactions();
 
+    // Async Cloud Storage backup
+    try {
         await databases.createDocument(
             DATABASE_ID,
             COLLECTION_TXN,
             ID.unique(),
             { userId: currentUser.$id, title: title, amount: amount, type: type }
-        ).catch(() => {});
-        return true;
+        );
     } catch (err) {
-        return true;
+        console.log("Database offline fallback used.");
     }
+    return true;
 }
 
 function openSpinModal() { document.getElementById('spinModal').style.display = 'flex'; }
@@ -510,5 +557,5 @@ function handleDiceRoll() {
     }
 }
 
+// Start app session execution
 checkSession();
-    
